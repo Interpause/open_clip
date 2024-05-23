@@ -8,6 +8,9 @@ import torch
 import torchvision.transforms.functional as F
 from torchvision.transforms import Normalize, Compose, RandomResizedCrop, InterpolationMode, ToTensor, Resize, \
     CenterCrop, ColorJitter, Grayscale
+import albumentations as A
+import numpy as np
+from PIL import Image
 
 from .constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from .utils import to_2tuple
@@ -66,6 +69,8 @@ class AugmentationCfg:
     re_prob: Optional[float] = None
     re_count: Optional[int] = None
     use_timm: bool = False
+    # NOTE: I added these (J-H)
+    use_extra: bool = False
 
     # params for simclr_jitter_gray
     color_jitter_prob: float = None
@@ -348,6 +353,15 @@ def image_transform(
                 train_transform.extend([
                     gray_scale(aug_cfg.gray_scale_prob)
                 ])
+
+            if aug_cfg.use_extra:
+                def _wrap(aug):
+                    return lambda im: Image.fromarray(aug(image=np.array(im))['image'])
+                train_transform.extend([
+                    _wrap(A.GaussNoise(p=0.6, per_channel=True, var_limit=(1000, 5000))),
+                    _wrap(A.ISONoise(p=0.6, intensity=(0.1, 0.5), color_shift=(0.03, 0.06))),
+                ])
+            
             train_transform.extend([
                 ToTensor(),
                 normalize,
