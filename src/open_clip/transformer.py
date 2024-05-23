@@ -711,6 +711,8 @@ class TextTransformer(nn.Module):
         return pooled
 
 
+# NOTE: Based on image lock impl, freeze_layer_norm should freeze all layers & not depend on unlocked layers.
+# The official impl for their own HFTextEncoder imo is wrong.
 def lock_text_transformer(
     transformer: TextTransformer, unlocked_layers: int = 0, freeze_layer_norm: bool = True
 ):
@@ -721,24 +723,48 @@ def lock_text_transformer(
         transformer.text_projection,
     ]
 
-    def _freeze(modules, freeze_layer_norm: bool = True):
+    def _freeze(modules):
         for module in modules:
             # `CLIP.text_projection` and `CLIP.positional_embedding`
             if isinstance(module, nn.Parameter):
+                print(f"Freezing module {module} which is a nn.Parameter")
                 module.requires_grad = False
 
             # All other modules
             elif isinstance(module, nn.Module):
+                print(f"Freezing module {module} which is a nn.Module")
                 for n, p in module.named_parameters():
-                    p.requires_grad = (not freeze_layer_norm) if "LayerNorm" in n.split(".") else False
+                    p.requires_grad = False
 
+            elif isinstance(module, list):
+                _freeze(module)
+
+            else:
+                raise TypeError(f"Encountered unexpected module type {type(module)} for module {module}")
+    
+    def _freeze_norm(modules):
+        for module in modules:
+            if isinstance(module, nn.LayerNorm):
+                module.requires_grad = False
+            elif isinstance(module, nn.Parameter):
+                pass
+            elif isinstance(module, nn.Module):
+                for n, p in module.named_parameters():
+                    if "LayerNorm" in n:
+                        p.requires_grad = False
+            elif isinstance(module, list):
+                _freeze_norm(module)
             else:
                 raise TypeError(f"Encountered unexpected module type {type(module)} for module {module}")
 
     if (not unlocked_layers) or (unlocked_layers == 0):  # full freezing
-        _freeze(groups, freeze_layer_norm)
+        _freeze(groups)
     else:
-        _freeze(groups[:-unlocked_layers], freeze_layer_norm)
+        _freeze(groups[:-unlocked_layers])
+
+    if freeze_layer_norm:
+        _freeze_norm(groups)
+
 
 
 class MultimodalTransformer(Transformer):
