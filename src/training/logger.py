@@ -10,6 +10,7 @@ def setup_logging(log_file, level, include_host=False):
     else:
         formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
 
+    handlers = []
     logging.root.setLevel(level)
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
     for logger in loggers:
@@ -17,10 +18,12 @@ def setup_logging(log_file, level, include_host=False):
 
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
-    logging.root.addHandler(stream_handler)
+    handlers.append(stream_handler)
 
     if log_file:
         file_handler = logging.FileHandler(filename=log_file)
         file_handler.setFormatter(formatter)
-        logging.root.addHandler(file_handler)
+        handlers.append(file_handler)
+
+    logging.basicConfig(handlers=handlers, force=True)
 
