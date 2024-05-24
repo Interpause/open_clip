@@ -8,7 +8,6 @@ import torch
 import torchvision.transforms.functional as F
 from torchvision.transforms import Normalize, Compose, RandomResizedCrop, InterpolationMode, ToTensor, Resize, \
     CenterCrop, ColorJitter, Grayscale
-import albumentations as A
 import numpy as np
 from PIL import Image
 
@@ -355,6 +354,8 @@ def image_transform(
                 ])
 
             if aug_cfg.use_extra:
+                import albumentations as A
+
                 def _wrap(aug):
                     return lambda im: Image.fromarray(aug(image=np.array(im))['image'])
                 train_transform.extend([
