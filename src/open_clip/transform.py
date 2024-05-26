@@ -10,6 +10,7 @@ from torchvision.transforms import Normalize, Compose, RandomResizedCrop, Interp
     CenterCrop, ColorJitter, Grayscale
 import numpy as np
 from PIL import Image
+import cv2
 
 from .constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from .utils import to_2tuple
@@ -359,8 +360,9 @@ def image_transform(
                 def _wrap(aug):
                     return lambda im: Image.fromarray(aug(image=np.array(im))['image'])
                 train_transform.extend([
-                    _wrap(A.GaussNoise(p=0.6, per_channel=True, var_limit=(1000, 5000))),
-                    _wrap(A.ISONoise(p=0.6, intensity=(0.1, 0.5), color_shift=(0.03, 0.06))),
+                    _wrap(A.ShiftScaleRotate(p=1, shift_limit=0.04, scale_limit=0.1, rotate_limit=180, interpolation=cv2.INTER_CUBIC, border_mode=cv2.BORDER_CONSTANT, value=0)),
+                    _wrap(A.GaussNoise(p=0.5, per_channel=True, var_limit=(1000, 5000))),
+                    _wrap(A.ISONoise(p=0.5, intensity=(0.1, 0.5), color_shift=(0.03, 0.06))),
                 ])
             
             train_transform.extend([
