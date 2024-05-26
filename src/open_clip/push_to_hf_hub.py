@@ -173,6 +173,7 @@ def push_pretrained_to_hf_hub(
     create_pr: bool = False,
     model_card: Optional[dict] = None,
     hf_tokenizer_self: bool = False,
+    safe_serialization: Union[bool, str] = False,
 ):
     model, preprocess_eval = create_model_from_pretrained(
         model_name,
@@ -202,7 +203,7 @@ def push_pretrained_to_hf_hub(
         private=private,
         create_pr=create_pr,
         model_card=model_card,
-        safe_serialization='both',
+        safe_serialization=safe_serialization,
     )
 
 
@@ -312,6 +313,7 @@ if __name__ == "__main__":
         image_std=args.image_std,
         image_interpolation=args.image_interpolation,
         image_resize_mode=args.image_resize_mode,
+        safe_serialization=False,
     )
 
     print(f'{args.model} saved.')
