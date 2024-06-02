@@ -71,6 +71,7 @@ class AugmentationCfg:
     use_timm: bool = False
     # NOTE: I added these (J-H)
     use_extra: bool = False
+    save_samples: int = -1
 
     # params for simclr_jitter_gray
     color_jitter_prob: float = None
@@ -340,6 +341,7 @@ def image_transform(
                 RandomResizedCrop(
                     image_size,
                     scale=aug_cfg_dict.pop('scale'),
+                    ratio=(1, 1),
                     interpolation=InterpolationMode.BICUBIC,
                 ),
                 _convert_to_rgb,
@@ -359,11 +361,30 @@ def image_transform(
 
                 def _wrap(aug):
                     return lambda im: Image.fromarray(aug(image=np.array(im))['image'])
-                train_transform.extend([
-                    _wrap(A.ShiftScaleRotate(p=1, shift_limit=0.04, scale_limit=0.1, rotate_limit=180, interpolation=cv2.INTER_CUBIC, border_mode=cv2.BORDER_CONSTANT, value=0)),
-                    _wrap(A.GaussNoise(p=0.5, per_channel=True, var_limit=(1000, 5000))),
-                    _wrap(A.ISONoise(p=0.5, intensity=(0.1, 0.5), color_shift=(0.03, 0.06))),
-                ])
+                T = [
+                    A.ShiftScaleRotate(p=1, shift_limit=0.03, scale_limit=0.05, rotate_limit=10, interpolation=cv2.INTER_CUBIC, border_mode=cv2.BORDER_CONSTANT, value=0),
+                    A.ISONoise(p=0.5),
+                    A.GaussNoise(p=0.8, var_limit=(200, 6000)),
+                    A.HorizontalFlip(),
+                ]
+                train_transform.append(_wrap(A.Compose(T)))
+            
+            if aug_cfg.save_samples > 0:
+                from tempfile import NamedTemporaryFile
+
+                num_saved = 0
+                def _save(im):
+                    nonlocal num_saved
+                    if num_saved >= aug_cfg.save_samples:
+                        return im
+
+                    f = NamedTemporaryFile(delete=False, suffix='.jpg')
+                    im.save(f.name)
+                    print(f"Augment Sample #{num_saved}: {f.name}")
+                    num_saved += 1
+                    return im
+                
+                train_transform.append(_save)
             
             train_transform.extend([
                 ToTensor(),
